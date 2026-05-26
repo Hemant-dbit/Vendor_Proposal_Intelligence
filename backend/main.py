@@ -11,6 +11,10 @@ app = FastAPI()
 model = joblib.load("../models/vendor_model.pkl")
 scaler = joblib.load("../models/scaler.pkl")
 features = joblib.load("../models/features.pkl")
+# Only first 14 features are numerical (need scaling)
+numerical_features = features[:14]
+# Remaining features are categorical (one-hot encoded, already 0/1)
+categorical_features = features[14:]
 
 @app.get("/")
 def home():
@@ -26,8 +30,8 @@ def predict(data: dict):
     # Align columns
     df = df.reindex(columns=features, fill_value=0)
     
-    # Scale
-    df[df.columns] = scaler.transform(df[df.columns])
+    # Scale only numerical features
+    df[numerical_features] = scaler.transform(df[numerical_features].values)
     
     # Predict
     score = model.predict(df)[0]
@@ -55,8 +59,8 @@ def predict_batch(request: dict):
         # Align columns
         df = df.reindex(columns=features, fill_value=0)
         
-        # Scale
-        df[df.columns] = scaler.transform(df[df.columns])
+        # Scale only numerical features
+        df[numerical_features] = scaler.transform(df[numerical_features].values)
         
         # Predict
         score = model.predict(df)[0]
