@@ -9,6 +9,8 @@ st.write("Compare multiple vendor proposals and get AI-powered rankings")
 # Initialize session state
 if "vendors" not in st.session_state:
     st.session_state.vendors = []
+if "show_all_vendors" not in st.session_state:
+    st.session_state.show_all_vendors = False
 
 # Sidebar for adding vendors
 with st.sidebar:
@@ -153,16 +155,56 @@ with st.sidebar:
 st.subheader(f"📊 Vendors Added: {len(st.session_state.vendors)}")
 
 if st.session_state.vendors:
-    # Display added vendors
-    if st.checkbox("Show Added Vendors"):
-        for idx, vendor in enumerate(st.session_state.vendors):
-            col1, col2 = st.columns([4, 1])
-            with col1:
-                st.write(f"**{vendor['name']}** - Price: ${vendor['unit_price']}, Quality: {vendor['quality_score']}, Days: {vendor['delivery_days']}")
-            with col2:
-                if st.button("❌", key=f"del_{idx}", use_container_width=True):
-                    st.session_state.vendors.pop(idx)
-                    st.rerun()
+    # Display added vendors with pagination
+    # Pagination logic
+    vendors_per_page = 5
+    total_vendors = len(st.session_state.vendors)
+    
+    if st.session_state.show_all_vendors:
+        displayed_count = total_vendors
+        vendors_to_show = st.session_state.vendors
+    else:
+        displayed_count = min(vendors_per_page, total_vendors)
+        vendors_to_show = st.session_state.vendors[:displayed_count]
+    
+    # Display vendors
+    for idx, vendor in enumerate(vendors_to_show):
+        # Get actual index in the full vendors list
+        if st.session_state.show_all_vendors:
+            actual_idx = idx
+        else:
+            actual_idx = idx
+        
+        col1, col2, col3 = st.columns([3, 1, 1])
+        
+        with col1:
+            st.write(f"🏢 **{vendor['name']}** | Price: ${vendor['unit_price']:,} | Quality: {vendor['quality_score']}/10 | Days: {vendor['delivery_days']}")
+        
+        with col2:
+            st.write("")  # Spacer
+        
+        with col3:
+            if st.button("❌", key=f"del_{actual_idx}", use_container_width=True):
+                st.session_state.vendors.pop(actual_idx)
+                st.rerun()
+    
+    # Show more button
+    if not st.session_state.show_all_vendors and total_vendors > vendors_per_page:
+        st.divider()
+        col1, col2, col3 = st.columns(3)
+        with col2:
+            if st.button(f"📥 Show More ({total_vendors - displayed_count} remaining)", use_container_width=True):
+                st.session_state.show_all_vendors = True
+                st.rerun()
+    
+    # Show less button
+    if st.session_state.show_all_vendors and total_vendors > vendors_per_page:
+        st.divider()
+        col1, col2, col3 = st.columns(3)
+        with col2:
+            if st.button("📤 Show Less", use_container_width=True):
+                st.session_state.show_all_vendors = False
+                st.rerun()
     
     # Compare button
     if st.button("🚀 Compare All Vendors & Rank", use_container_width=True, type="primary"):
@@ -225,6 +267,42 @@ if st.session_state.vendors:
                     st.success("✅ Ranking Complete!")
                     st.divider()
                     
+                    # Display detailed information of the top-ranked vendor first
+                    st.subheader("📊 Top Vendor Detailed Information")
+                    
+                    # Find the top vendor in the original vendors list
+                    top_vendor_name = ranked_vendors[0]["name"]
+                    top_vendor_data = None
+                    for vendor in st.session_state.vendors:
+                        if vendor["name"] == top_vendor_name:
+                            top_vendor_data = vendor
+                            break
+                    
+                    if top_vendor_data:
+                        # Display in three columns
+                        col1, col2, col3 = st.columns(3)
+                        
+                        with col1:
+                            st.metric("💰 Unit Price", f"${top_vendor_data['unit_price']:,.2f}")
+                            st.metric("⭐ Quality Score", f"{top_vendor_data['quality_score']:.1f}/10")
+                            st.metric("📅 Delivery Days", top_vendor_data['delivery_days'])
+                            st.metric("🔧 Defect Rate", f"{top_vendor_data['defect_rate_percent']:.1f}%")
+                        
+                        with col2:
+                            st.metric("🏢 Experience", f"{top_vendor_data['vendor_experience_years']} years")
+                            st.metric("📞 Support Rating", f"{top_vendor_data['support_rating']:.1f}/5")
+                            st.metric("✅ On-Time Delivery Rate", f"{top_vendor_data['on_time_delivery_rate']*100:.1f}%")
+                            st.metric("📜 Certifications", top_vendor_data['certifications_count'])
+                        
+                        with col3:
+                            st.metric("💳 Payment Terms", f"{top_vendor_data['payment_terms_days']} days")
+                            st.metric("🛡️ Warranty", f"{top_vendor_data['warranty_months']} months")
+                            st.metric("🌍 Region", top_vendor_data['vendor_region'])
+                            st.metric("📦 Category", top_vendor_data['product_category'])
+                    
+                    st.divider()
+                    st.subheader("📋 Comparison List")
+                    
                     for vendor in ranked_vendors:
                         if vendor["rank"] == 1:
                             st.markdown(f"### 🏆 Rank #{vendor['rank']}: {vendor['name']}")
@@ -246,20 +324,6 @@ if st.session_state.vendors:
                                     st.write(f"Score: `{vendor['score']:.2f}`")
                                 with col4:
                                     st.write(vendor['recommendation'])
-                    
-                    # Summary table
-                    st.divider()
-                    st.subheader("📈 Detailed Ranking Summary")
-                    df = pd.DataFrame([
-                        {
-                            "Rank": v["rank"],
-                            "Vendor": v["name"],
-                            "Score": f"{v['score']:.2f}",
-                            "Recommendation": v["recommendation"]
-                        }
-                        for v in ranked_vendors
-                    ])
-                    st.dataframe(df, use_container_width=True, hide_index=True)
                     
                 else:
                     st.error(f"API Error: {response.status_code}")
