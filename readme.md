@@ -37,7 +37,6 @@ The ML model scores vendors (0–100) based on a weighted combination of:
 │   └── features.pkl        # Feature list
 ├── notebooks/
 │   └── 01_vendor_ml.ipynb  # Model training notebook
-└── vpi/                    # Virtual environment
 ```
 
 ## Getting Started
